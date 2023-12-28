@@ -13,3 +13,12 @@ unsigned int getInputShape(Json::Value layer){
     std::cout << "Input shape not supported !" << std::endl;
     return 0;
 }
+
+dense_weights_t getWeights(Json::Value json_weights){
+    dense_weights_t weights;
+    for (int i=0; i<json_weights[0].size(); i++){
+        weights.kernel.push_back(json_weights[0][i][0].asFloat());
+    }
+    weights.bias = json_weights[1][0].asFloat();
+    return weights;
+}
