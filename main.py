@@ -82,16 +82,42 @@ if os.path.isfile("model/model.h5"):
 else:
     train_model(model, x_train, y_train, x_valid, y_valid)
 
-test = train_csv.sample(n=10)
+test = train_csv.sample(n=100)
+
+py_expected = []
+py_pred = []
+cpp_pred = []
+
+test = valid.sample(n=100)
+
 for index, rows in test.iterrows():
     row = rows.copy()
     row = row.to_frame()
     row = row.transpose()
     expected = row.pop(target)
+    expected = expected.iloc[0]
+    py_expected.append(expected)
     row.pop('id')
     res = model.predict(row, verbose=0)
+    res = res[0][0]
+    py_pred.append(res)
     argv = row.values.tolist()[0]
     argv = list(map(str, argv))
     argv = " ".join(argv)
     cpp_predict = os.popen(f"./build/nn {argv}").read()
-    print(f"Predicted: {res[0][0]}, cpp predicted: {cpp_predict} and Expected: {expected.iloc[0]}")
+    cpp_pred.append(float(cpp_predict))
+    #print(f"Predicted: {res}, cpp predicted: {cpp_predict} and Expected: {expected}")
+
+fig, ax = plt.subplots()
+x_ax = range(len(py_expected))
+ax.plot(x_ax, py_expected, label='Python DB (Expected value)')
+ax.plot(x_ax, py_pred, label='C++ Predicted value')
+y1 = list(map(lambda x: x*1.05, py_expected))
+y2 = list(map(lambda x: x*0.95, py_expected))
+#ax.fill_between(x_ax, y1, y2, alpha=.5, label='Python DB (Expected value +/- 5%)')
+ax.legend()
+ax.grid()
+ax.set_title('C++ Predicted values versus Python DataBase Expected values')
+ax.set_xlabel('Sample')
+ax.set_ylabel('Value')
+plt.show()
