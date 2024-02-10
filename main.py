@@ -11,8 +11,8 @@ keras.utils.set_random_seed(55)
 
 def train_model(model, x_train, y_train, x_valid, y_valid):
     early_stopping = callbacks.EarlyStopping(
-        min_delta=0.001,
-        patience=20,
+        min_delta=25,
+        patience=200,
         restore_best_weights=True,
     )
 
@@ -20,7 +20,7 @@ def train_model(model, x_train, y_train, x_valid, y_valid):
         x_train, y_train,
         validation_data=(x_valid, y_valid),
         batch_size=512,
-        epochs=1024,
+        epochs=8172,
         callbacks=[early_stopping],
         verbose=1
     )
@@ -56,45 +56,53 @@ def train_model(model, x_train, y_train, x_valid, y_valid):
     with open("model/model.json", "w") as json_file:
         json_file.write(json_str)
 
-#train_csv = pd.read_csv('phone_price/train.csv')
-#target = 'clock_speed'
-train_csv = pd.read_csv('data/housing.csv')
-target = 'MedHouseVal'
+if __name__ == '__main__':
+    train_csv = pd.read_csv('data/house_prices/train.csv')
+    target = 'SalePrice'
 
-train = train_csv.sample(frac=0.8)
-valid = train_csv.drop(train.index)
+    train_csv = train_csv.select_dtypes(exclude=['object'])
+    train_csv = train_csv.dropna()
 
-x_train = train.copy()
-y_train = x_train.pop(target)
-x_train.pop('id')
+    train_corr_matrix = train_csv.corr()
 
-x_valid = valid.copy()
-y_valid = x_valid.pop(target)
-x_valid.pop('id')
+    for c in train_csv.columns:
+        if abs(train_corr_matrix[target][c]) < 0.1:
+            train_csv = train_csv.drop(c, axis=1)
 
-input_shape = x_train.shape[1]
-input_shape = [input_shape]
+    train = train_csv.sample(frac=0.8)
+    valid = train_csv.drop(train.index)
 
-print(f"Input shape is {input_shape}")
+    x_train = train.copy()
+    y_train = x_train.pop(target)
+    x_valid = valid.copy()
+    y_valid = x_valid.pop(target)
 
-model = keras.Sequential([
-    keras.layers.Dense(128, input_shape=input_shape, activation="relu"),
-    keras.layers.Dense(64, activation="relu"),
-    keras.layers.Dense(32, activation="relu"),
-    keras.layers.Dense(16),
-])
+    input_shape = x_train.shape[1]
+    input_shape = [input_shape]
 
-model.compile(
-    optimizer='adam',
-    loss='mae',
-)
+    print(f"Input shape is {input_shape}")
 
-do_load = True
+    keras_const_pos = keras.constraints.MinMaxNorm(min_value=-7, max_value=7, rate=1.0, axis=0)
+    activation = "relu"
+    model = keras.Sequential([
+        keras.layers.Dense(32, activation=activation, kernel_constraint=keras_const_pos, input_shape=input_shape),
+        keras.layers.Dense(32, activation=activation, kernel_constraint=keras_const_pos),
+        keras.layers.Dense(32, activation=activation, kernel_constraint=keras_const_pos),
+    ])
 
-if do_load and os.path.isfile("model/model.h5"):
-    model.load_weights("model/model.h5")
-else:
-    train_model(model, x_train, y_train, x_valid, y_valid)
+    model.compile(
+        optimizer='adam',
+        loss='mae',
+    )
+
+    model.summary()
+
+    do_load = False
+
+    if do_load and os.path.isfile("model/model.h5"):
+        model.load_weights("model/model.h5")
+    else:
+        train_model(model, x_train, y_train, x_valid, y_valid)
 
 py_expected = []
 py_pred = []
@@ -110,7 +118,7 @@ for index, rows in tqdm(test.iterrows()):
     expected = row.pop(target)
     expected = expected.iloc[0]
     py_expected.append(expected)
-    row.pop('id')
+    #row.pop('id')
     res = model.predict(row, verbose=0)
     res = res[0][0]
     py_pred.append(res)
