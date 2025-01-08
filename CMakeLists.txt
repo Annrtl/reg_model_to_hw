@@ -8,6 +8,7 @@ add_executable ( nn src/main.cpp )
 
 target_sources( nn PRIVATE src/dense.cpp )
 target_sources( nn PRIVATE src/import.cpp )
+target_sources( nn PRIVATE src/parser.cpp )
 
 target_link_libraries( nn jsoncpp )
 
